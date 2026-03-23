@@ -80,17 +80,11 @@
 </div>
 
 <script>
-const ACCOUNT_ID  = "30158593";
-const FUNCTION_ID = "774f1b7b-9dac-4a0e-a85d-73ac7508bbd6";
-const API_URL = `https://euwe1.faas.liveperson.net/api/account/${ACCOUNT_ID}/lambdas/${FUNCTION_ID}/invoke`;
+const API_URL = "https://queue-monitor.magic-cd4.workers.dev/";
 
 async function fetchQueueData() {
   try {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ timestamp: Date.now(), headers: [], payload: {} })
-    });
+    const res = await fetch(API_URL);
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
@@ -101,7 +95,7 @@ async function fetchQueueData() {
 }
 
 function updateUI(data) {
-  const total = data.currentQueueSize || 0;
+  const total = data.metricsTotals?.currentQueueSize || 0;
   const el = document.getElementById("totalQueue");
   el.textContent = total;
   el.className = "queue-number " + (total === 0 ? "low" : total <= 5 ? "medium" : "high");
