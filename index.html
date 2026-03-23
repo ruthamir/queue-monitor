@@ -66,15 +66,6 @@
     0%,100% { opacity: 1; }
     50% { opacity: 0.3; }
   }
-  .skill-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 13px;
-    color: #a0b8d0;
-    padding: 4px 0;
-    border-top: 1px solid #243a52;
-  }
-  .skills-section { margin-top: 16px; width: 100%; }
 </style>
 </head>
 <body>
@@ -82,7 +73,6 @@
   <div class="title">שיחות ממתינות בתור</div>
   <div class="queue-number low" id="totalQueue">--</div>
   <div class="label">שיחות</div>
-  <div class="skills-section" id="skillsSection"></div>
   <div class="status">
     <span class="dot" id="dot"></span>
     <span id="statusText">מתחבר...</span>
@@ -90,52 +80,18 @@
 </div>
 
 <script>
-const ACCOUNT_ID = '30158593';
-const APP_KEY    = '15081d4f5c6d4422b2a5f1aa67dd7c58';
-const SECRET     = '44f10596cb7302e6';
-const TOKEN      = 'a8217bb0b9c1407fa2921ed408ad8999';
-const TOKEN_SEC  = '4689d4b9e4372f59';
-
-// OAuth 1.0a signing
-function percentEncode(str) {
-  return encodeURIComponent(str).replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
-}
-
-async function hmacSha1(key, data) {
-  const enc = new TextEncoder();
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw', enc.encode(key), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']
-  );
-  const sig = await crypto.subtle.sign('HMAC', cryptoKey, enc.encode(data));
-  return btoa(String.fromCharCode(...new Uint8Array(sig)));
-}
-
-async function buildAuthHeader(method, url) {
-  const nonce = Math.random().toString(36).substring(2);
-  const ts    = Math.floor(Date.now() / 1000).toString();
-  const params = {
-    oauth_consumer_key:     APP_KEY,
-    oauth_nonce:            nonce,
-    oauth_signature_method: 'HMAC-SHA1',
-    oauth_timestamp:        ts,
-    oauth_token:            TOKEN,
-    oauth_version:          '1.0'
-  };
-  const sortedParams = Object.keys(params).sort()
-    .map(k => `${percentEncode(k)}=${percentEncode(params[k])}`).join('&');
-  const baseString = `${method}&${percentEncode(url)}&${percentEncode(sortedParams)}`;
-  const signingKey = `${percentEncode(SECRET)}&${percentEncode(TOKEN_SEC)}`;
-  params.oauth_signature = await hmacSha1(signingKey, baseString);
-  const header = 'OAuth ' + Object.keys(params)
-    .map(k => `${percentEncode(k)}="${percentEncode(params[k])}"`).join(', ');
-  return header;
-}
+const ACCOUNT_ID  = "30158593";
+const FUNCTION_ID = "774f1b7b-9dac-4a0e-a85d-73ac7508bbd6";
+const API_URL = `https://euwe1.faas.liveperson.net/api/account/${ACCOUNT_ID}/lambdas/${FUNCTION_ID}/invoke`;
 
 async function fetchQueueData() {
-  const url = `https://euwe1.data.liveperson.net/operations/api/account/${ACCOUNT_ID}/queuehealth?timeframe=30&v=1&skillIds=all`;
   try {
-    const auth = await buildAuthHeader('GET', url);
-    const res  = await fetch(url, { headers: { Authorization: auth } });
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ timestamp: Date.now(), headers: [], payload: {} })
+    });
+
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     updateUI(data);
@@ -145,40 +101,24 @@ async function fetchQueueData() {
 }
 
 function updateUI(data) {
-  const skills = data?.skillsMetrics;
-  let total = 0;
-  let rows  = '';
-
-  if (skills) {
-    for (const [id, m] of Object.entries(skills)) {
-      if (id === 'total') continue;
-      const q = m.waitingConversations || 0;
-      total += q;
-      rows += `<div class="skill-row"><span>${m.skillName || 'Skill '+id}</span><span>${q}</span></div>`;
-    }
-  } else if (data?.total) {
-    total = data.total.waitingConversations || 0;
-  }
-
-  const el = document.getElementById('totalQueue');
+  const total = data.currentQueueSize || 0;
+  const el = document.getElementById("totalQueue");
   el.textContent = total;
-  el.className   = 'queue-number ' + (total === 0 ? 'low' : total <= 5 ? 'medium' : 'high');
-
-  document.getElementById('skillsSection').innerHTML = rows;
-  document.getElementById('dot').className  = 'dot';
-  document.getElementById('statusText').textContent =
-    'עודכן: ' + new Date().toLocaleTimeString('he-IL');
+  el.className = "queue-number " + (total === 0 ? "low" : total <= 5 ? "medium" : "high");
+  document.getElementById("dot").className = "dot";
+  document.getElementById("statusText").textContent =
+    "עודכן: " + new Date().toLocaleTimeString("he-IL");
 }
 
 function showError(msg) {
-  document.getElementById('totalQueue').textContent = '!';
-  document.getElementById('totalQueue').className   = 'queue-number high';
-  document.getElementById('dot').className  = 'dot error';
-  document.getElementById('statusText').textContent = 'שגיאה: ' + msg;
+  document.getElementById("totalQueue").textContent = "!";
+  document.getElementById("totalQueue").className = "queue-number high";
+  document.getElementById("dot").className = "dot error";
+  document.getElementById("statusText").textContent = "שגיאה: " + msg;
 }
 
 fetchQueueData();
-setInterval(fetchQueueData, 30000); // מתרענן כל 30 שניות
+setInterval(fetchQueueData, 30000);
 </script>
 </body>
 </html>
